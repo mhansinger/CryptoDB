@@ -58,3 +58,4 @@ class SQLstream(object):
         c.execute(insert_string)
         conn.commit()
         conn.close()
+        print('Update '+str(self.__pair)+' at '+str(date))

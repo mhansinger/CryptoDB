@@ -132,13 +132,13 @@ def main():
     run2()
     run3()
     run4()
-    run5()
-    run6()
+    #run5()
+    #run6()
     run7()
     run8()
-    run9()
-    run10()
+    #run9()
+    #run10()
     run11()
 
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#    main()
