@@ -4,141 +4,132 @@ import sys
 
 # set up the main functions you want to stream
 
-XETHXXBT_sql = SQLstream('XETH','XXBT','Crypto.db')
-XETHZEUR_sql = SQLstream('XETH','ZEUR','Crypto.db')
-XXBTZEUR_sql = SQLstream('XXBT','ZEUR','Crypto.db')
-XLTCZEUR_sql = SQLstream('XLTC','ZEUR','Crypto.db')
-XLTCXXBT_sql = SQLstream('XLTC','XXBT','Crypto.db')
-XXMRXXBT_sql = SQLstream('XXMR','XXBT','Crypto.db')
-XXMRZEUR_sql = SQLstream('XXMR','ZEUR','Crypto.db')
-XZECZEUR_sql = SQLstream('XZEC','ZEUR','Crypto.db')
-XICNXXBT_sql = SQLstream('XICN','XXBT','Crypto.db')
-DASHXXBT_sql = SQLstream('DASH','XXBT','Crypto.db')
-DASHZEUR_sql = SQLstream('DASH','ZEUR','Crypto.db')
+ETHBTC_sql = SQLstream('ETH','BTC','Crypto.db')
+ETHEUR_sql = SQLstream('ETH','EUR','Crypto.db')
+BTCEUR_sql = SQLstream('BTC','EUR','Crypto.db')
+LTCEUR_sql = SQLstream('LTC','EUR','Crypto.db')
+LTCBTC_sql = SQLstream('LTC','BTC','Crypto.db')
+XMRBTC_sql = SQLstream('XMR','BTC','Crypto.db')
+DASHBTC_sql = SQLstream('DASH','BTC','Crypto.db')
+XRPBTC_sql = SQLstream('XRP','BTC','Crypto.db')
+STRBTC_sql = SQLstream('STR','BTC','Crypto.db')
+XEMBTC_sql = SQLstream('XEM','BTC','Crypto.db')
+STRATBTC_sql = SQLstream('STRAT','BTC','Crypto.db')
 
 
-def run1(interval=60):
+def runETHBTC(interval=60):
     try:
-        XETHXXBT_sql.updateDB()
-        t=threading.Timer(interval, run1)
+        ETHBTC_sql.updateDB()
+        t=threading.Timer(interval, runETHBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHXXBT wird erneut gestartet...\n')
-        run1()
+        print('ETHBTC wird erneut gestartet...\n')
+        runETHBTC()
 
-def run2(interval=60):
+def runETHEUR(interval=60):
     try:
-        XETHZEUR_sql.updateDB()
-        t=threading.Timer(interval, run2)
+        ETHEUR_sql.updateDB_GDAX()
+        t=threading.Timer(interval, runETHEUR)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run2()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runETHEUR()
 
-def run3(interval=60):
+def runBTCEUR(interval=60):
     try:
-        XXBTZEUR_sql.updateDB()
-        t=threading.Timer(interval, run3)
+        # here gdax is neede
+        BTCEUR_sql.updateDB_GDAX()
+        t=threading.Timer(interval, runBTCEUR)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run3()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runBTCEUR()
 
-def run4(interval=60):
+def runLTCEUR(interval=60):
     try:
-        XLTCZEUR_sql.updateDB()
-        t=threading.Timer(interval, run4)
+        LTCEUR_sql.updateDB_GDAX()
+        t=threading.Timer(interval, runLTCEUR)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run4()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runLTCEUR()
 
-def run5(interval=60):
+def runLTCBTC(interval=60):
     try:
-        XLTCXXBT_sql.updateDB()
-        t=threading.Timer(interval, run5)
+        LTCBTC_sql.updateDB()
+        t=threading.Timer(interval, runLTCBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run5()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runLTCBTC()
 
-def run6(interval=60):
+def runXMRBTC(interval=60):
     try:
-        XXMRXXBT_sql.updateDB()
-        t=threading.Timer(interval, run6)
+        XMRBTC_sql.updateDB()
+        t=threading.Timer(interval, runXMRBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run6()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runXMRBTC()
 
-def run7(interval=60):
+def runDASHBTC(interval=60):
     try:
-        XXMRZEUR_sql.updateDB()
-        t=threading.Timer(interval, run7)
+        DASHBTC_sql.updateDB()
+        t=threading.Timer(interval, runDASHBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run7()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runDASHBTC()
 
-def run8(interval=60):
+def runXRPBTC(interval=60):
     try:
-        XZECZEUR_sql.updateDB()
-        t=threading.Timer(interval, run8)
+        XRPBTC_sql.updateDB()
+        t=threading.Timer(interval, runXRPBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run8()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runXRPBTC()
 
-def run9(interval=60):
+def runXEMBTC(interval=60):
     try:
-        XICNXXBT_sql.updateDB()
-        t=threading.Timer(interval, run9)
+        XEMBTC_sql.updateDB()
+        t=threading.Timer(interval, runXEMBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run9()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runXEMBTC()
 
-def run10(interval=60):
+def runSTRATBTC(interval=60):
     try:
-        DASHXXBT_sql.updateDB()
-        t=threading.Timer(interval, run10)
+        STRATBTC_sql.updateDB()
+        t=threading.Timer(interval, runSTRATBTC)
         t.start()
     except:
         print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run10()
-
-def run11(interval=60):
-    try:
-        DASHZEUR_sql.updateDB()
-        t=threading.Timer(interval, run11)
-        t.start()
-    except:
-        print("Fehler: ", sys.exc_info()[0])
-        print('XETHZEUR wird erneut gestartet...\n')
-        run11()
+        print('ETHZEUR wird erneut gestartet...\n')
+        runSTRATBTC()
 
 def main():
-    run1()
-    run2()
-    run3()
-    run4()
-    #run5()
-    #run6()
-    run7()
-    run8()
-    #run9()
-    #run10()
-    run11()
+    runETHBTC()
+    runETHEUR()
+    runBTCEUR()
+    runLTCBTC()
+    runLTCEUR()
+    runXMRBTC()
+    runDASHBTC()
+    runXRPBTC()
+    runXEMBTC()
+    runSTRATBTC()
+
 
 #if __name__ == '__main__':
 #    main()
