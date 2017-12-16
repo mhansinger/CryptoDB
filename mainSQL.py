@@ -2,19 +2,22 @@ from SQLstream import SQLstream
 import threading
 import sys
 
+# specify the path to the database
+path = 'Crypto.db'
+
 # set up the main functions you want to stream
 
-ETHBTC_sql = SQLstream('ETH','BTC','Crypto.db')
-ETHEUR_sql = SQLstream('ETH','EUR','Crypto.db')
-BTCEUR_sql = SQLstream('BTC','EUR','Crypto.db')
-LTCEUR_sql = SQLstream('LTC','EUR','Crypto.db')
-LTCBTC_sql = SQLstream('LTC','BTC','Crypto.db')
-XMRBTC_sql = SQLstream('XMR','BTC','Crypto.db')
-DASHBTC_sql = SQLstream('DASH','BTC','Crypto.db')
-XRPBTC_sql = SQLstream('XRP','BTC','Crypto.db')
-STRBTC_sql = SQLstream('STR','BTC','Crypto.db')
-XEMBTC_sql = SQLstream('XEM','BTC','Crypto.db')
-STRATBTC_sql = SQLstream('STRAT','BTC','Crypto.db')
+ETHBTC_sql = SQLstream('ETH','BTC',path)
+ETHEUR_sql = SQLstream('ETH','EUR',path)
+BTCEUR_sql = SQLstream('BTC','EUR',path)
+LTCEUR_sql = SQLstream('LTC','EUR',path)
+LTCBTC_sql = SQLstream('LTC','BTC',path)
+XMRBTC_sql = SQLstream('XMR','BTC',path)
+DASHBTC_sql = SQLstream('DASH','BTC',path)
+XRPBTC_sql = SQLstream('XRP','BTC',path)
+STRBTC_sql = SQLstream('STR','BTC',path)
+XEMBTC_sql = SQLstream('XEM','BTC',path)
+STRATBTC_sql = SQLstream('STRAT','BTC',path)
 
 
 def runETHBTC(interval=60):
@@ -131,5 +134,5 @@ def main():
     runSTRATBTC()
 
 
-#if __name__ == '__main__':
-#    main()
+if __name__ == '__main__':
+    main()

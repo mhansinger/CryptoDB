@@ -1,10 +1,12 @@
 import sqlite3
-import pandas as pd
-import numpy as np
-from poloniex import Poloniex
-import gdax
 import time
 import os.path
+
+try:
+    from poloniex import Poloniex
+    import gdax
+except ImportError:
+    print('Install the poloniex and gdax APIs.')
 
 class SQLstream(object):
     def __init__(self, asset1='ETH',asset2='BTC',db='TEST.db'):
