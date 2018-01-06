@@ -7,7 +7,7 @@ path = 'ShitCoins.db'
 
 # set up the main functions you want to stream
 
-interval_sec=600
+interval_sec = 600
 
 # which shit coins to stream
 coins = ['ETH','PIVX','NEO','COVAL','NXT','SALT','DGB','RDD','FCT','VTC','ENG','NMR']
