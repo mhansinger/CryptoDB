@@ -5,11 +5,11 @@ import requests
 
 
 class bittrexStream(object):
-    def __init__(self,baseCurrency = 'BTC', db='bittrex.db'):
+    def __init__(self,baseCurrency = 'BTC', db='bittrex.db',url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'):
         '''
-        Get % change from Poloniex
+        Get % change from Bittrex
         '''
-        self.url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'
+        self.url = url
         print(self.url)
 
         self.base = baseCurrency
@@ -45,9 +45,13 @@ class bittrexStream(object):
             c = conn.cursor()
             price_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_PRICE (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
             volume_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_VOLUME (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
+            ask_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_ASK (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
+            bid_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_BID (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
             #print(price_string)
             c.execute(price_string)
             c.execute(volume_string)
+            c.execute(ask_string)
+            c.execute(bid_string)
             conn.commit()
             conn.close()
         else:
@@ -64,6 +68,8 @@ class bittrexStream(object):
         c = conn.cursor()
         price_vec = ''
         volume_vec =''
+        ask_vec =''
+        bid_vec = ''
         for idx, pair in enumerate(self.pairs):
             data_coin = data_all['result'][idx]
             try:
@@ -73,13 +79,19 @@ class bittrexStream(object):
 
             price = data_coin['Last']
             volume = data_coin['BaseVolume']
+            ask = data_coin['Ask']
+            bid = data_coin['Bid']
 
             if idx < len(self.pairs)-1:
                 price_vec += str(price)+', '
                 volume_vec += str(volume)+', '
+                ask_vec += str(ask)+', '
+                bid_vec += str(bid)+', '
             else:
                 price_vec += str(price)
                 volume_vec += str(volume)
+                ask_vec += str(ask)
+                bid_vec += str(bid)
 
         date = time.strftime("%m.%d.%y_%H:%M:%S", time.localtime())
         unixtime = int(time.time())
@@ -89,9 +101,15 @@ class bittrexStream(object):
                 unixtime) + ", '" + str(date)+ "' ," + price_vec + ")"
         insert_volume = "INSERT INTO BTC_PAIRS_VOLUME (" + self.col_vector + ") " + " VALUES (" + str(
                 unixtime) + ", '" + str(date)+ "' ," + volume_vec + ")"
+        insert_ask = "INSERT INTO BTC_PAIRS_ASK (" + self.col_vector + ") " + " VALUES (" + str(
+                unixtime) + ", '" + str(date)+ "' ," + ask_vec + ")"
+        insert_bid = "INSERT INTO BTC_PAIRS_BID (" + self.col_vector + ") " + " VALUES (" + str(
+                unixtime) + ", '" + str(date)+ "' ," + bid_vec + ")"
 
         c.execute(insert_price)
         c.execute(insert_volume)
+        c.execute(insert_ask)
+        c.execute(insert_bid)
         conn.commit()
         print('Update the data base at ' + str(date))
         conn.close()
