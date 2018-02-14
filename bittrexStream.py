@@ -89,6 +89,7 @@ class bittrexStream(object):
                 volume = 0.0
                 ask = 0.0
                 bid = 0.0
+                pass
 
 
             if idx < len(self.pairs)-1:
