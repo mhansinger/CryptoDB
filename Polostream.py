@@ -76,12 +76,13 @@ class Polostream(object):
         # connect to DB
         insert_percent = "INSERT INTO BTC_PAIRS_PERCENT (" + self.col_vector + ") " + " VALUES (" + str(
                 unixtime) + ", '" + str(date)+ "' ," + percent_vec + ")"
+
         insert_price = "INSERT INTO BTC_PAIRS_PRICE (" + self.col_vector + ") " + " VALUES (" + str(
                 unixtime) + ", '" + str(date)+ "' ," + price_vec + ")"
         insert_volume = "INSERT INTO BTC_PAIRS_VOLUME (" + self.col_vector + ") " + " VALUES (" + str(
                 unixtime) + ", '" + str(date)+ "' ," + volume_vec + ")"
 
-        #print(insert_percent)
+        print(insert_percent)
         #print(insert_price)
         c.execute(insert_percent)
         c.execute(insert_price)

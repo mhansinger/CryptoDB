@@ -5,7 +5,7 @@ import requests
 
 
 class bittrexStream(object):
-    def __init__(self,baseCurrency = 'BTC', db='bittrex.db',url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'):
+    def __init__(self,baseCurrency = 'BTC', db='bittrex.db', url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'):
         '''
         Get % change from Bittrex
         '''
@@ -15,6 +15,10 @@ class bittrexStream(object):
         self.base = baseCurrency
         data = requests.get(self.url).json()
         self.pairs = []
+        self.insert_price = None
+        self.insert_volume = None
+        self.insert_ask = None
+        self.insert_bid = None
 
         # fill up the pairs to stream, accroding to base currency
         for p in range(len(data['result'])):
@@ -33,8 +37,8 @@ class bittrexStream(object):
         for p in range(1,len(self.pairs)):
             self.col_vector+=', '+ self.pairs[p]
 
-        self.col_vector = 'UNIX_Time, Date, ' + self.col_vector
-        self.columns = 'UNIX_Time, Date, ' + self.pair_vector
+        self.col_vector = 'UNIX_Time,  ' + self.col_vector
+        self.columns = 'UNIX_Time,  ' + self.pair_vector
 
         self.path = db
 
@@ -43,10 +47,10 @@ class bittrexStream(object):
             print('Open table')
             conn = sqlite3.connect(self.path)
             c = conn.cursor()
-            price_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_PRICE (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
-            volume_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_VOLUME (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
-            ask_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_ASK (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
-            bid_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_BID (UNIX_Time INT, Date TEXT,' + self.pair_vector + ')'
+            price_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_PRICE (UNIX_Time INT, ' + self.pair_vector + ')'
+            volume_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_VOLUME (UNIX_Time INT, ' + self.pair_vector + ')'
+            ask_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_ASK (UNIX_Time INT, ' + self.pair_vector + ')'
+            bid_string = 'CREATE TABLE IF NOT EXISTS BTC_PAIRS_BID (UNIX_Time INT, ' + self.pair_vector + ')'
             #print(price_string)
             c.execute(price_string)
             c.execute(volume_string)
@@ -64,24 +68,27 @@ class bittrexStream(object):
 
     def updateDB(self):
         data_all = self.getTicker()
-        conn = sqlite3.connect(self.path)
-        c = conn.cursor()
         price_vec = ''
-        volume_vec =''
-        ask_vec =''
+        volume_vec = ''
+        ask_vec = ''
         bid_vec = ''
         for idx, pair in enumerate(self.pairs):
             try:
                 data_coin = data_all['result'][idx]
+<<<<<<< Updated upstream
                 try:
                     assert data_coin['MarketName'] == pair.replace('_','-')
                 except AssertionError:
                     print('Somethings wrong with the coin order')
                 
+=======
+                assert data_coin['MarketName'] == pair.replace('_','-')
+>>>>>>> Stashed changes
                 price = data_coin['Last']
                 volume = data_coin['BaseVolume']
                 ask = data_coin['Ask']
                 bid = data_coin['Bid']
+<<<<<<< Updated upstream
             
             except:
                 print(pair,' is not listed anymore on Bittrex!')
@@ -91,36 +98,43 @@ class bittrexStream(object):
                 bid = 0.0
                 pass
 
+=======
+            except AssertionError:
+                print('Somethings wrong with the coin order')
+                price = 0
+                volume = 0
+                ask = 0
+                bid = 0
+>>>>>>> Stashed changes
 
             if idx < len(self.pairs)-1:
-                price_vec += str(price)+', '
-                volume_vec += str(volume)+', '
-                ask_vec += str(ask)+', '
-                bid_vec += str(bid)+', '
+                price_vec += str(price)+','
+                volume_vec += str(volume)+','
+                ask_vec += str(ask)+','
+                bid_vec += str(bid)+','
             else:
                 price_vec += str(price)
                 volume_vec += str(volume)
                 ask_vec += str(ask)
                 bid_vec += str(bid)
+                print(idx)
 
         date = time.strftime("%m.%d.%y_%H:%M:%S", time.localtime())
         unixtime = int(time.time())
 
         # connect to DB
-        insert_price = "INSERT INTO BTC_PAIRS_PRICE (" + self.col_vector + ") " + " VALUES (" + str(
-                unixtime) + ", '" + str(date)+ "' ," + price_vec + ")"
-        insert_volume = "INSERT INTO BTC_PAIRS_VOLUME (" + self.col_vector + ") " + " VALUES (" + str(
-                unixtime) + ", '" + str(date)+ "' ," + volume_vec + ")"
-        insert_ask = "INSERT INTO BTC_PAIRS_ASK (" + self.col_vector + ") " + " VALUES (" + str(
-                unixtime) + ", '" + str(date)+ "' ," + ask_vec + ")"
-        insert_bid = "INSERT INTO BTC_PAIRS_BID (" + self.col_vector + ") " + " VALUES (" + str(
-                unixtime) + ", '" + str(date)+ "' ," + bid_vec + ")"
+        self.insert_price = "INSERT INTO BTC_PAIRS_PRICE (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + price_vec + ")"
+        self.insert_volume = "INSERT INTO BTC_PAIRS_VOLUME (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + volume_vec + ")"
+        self.insert_ask = "INSERT INTO BTC_PAIRS_ASK (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + ask_vec + ")"
+        self.insert_bid = "INSERT INTO BTC_PAIRS_BID (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + bid_vec + ")"
 
-        c.execute(insert_price)
-        c.execute(insert_volume)
-        c.execute(insert_ask)
-        c.execute(insert_bid)
+        conn = sqlite3.connect(self.path)
+        c = conn.cursor()
+        c.execute(self.insert_price)
+        c.execute(self.insert_volume)
+        c.execute(self.insert_ask)
+        c.execute(self.insert_bid)
         conn.commit()
-        print('Update the data base at ' + str(date))
         conn.close()
+        print('Update the data base at ' + str(date))
 
