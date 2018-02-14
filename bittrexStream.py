@@ -71,16 +71,25 @@ class bittrexStream(object):
         ask_vec =''
         bid_vec = ''
         for idx, pair in enumerate(self.pairs):
-            data_coin = data_all['result'][idx]
             try:
-                assert data_coin['MarketName'] == pair.replace('_','-')
-            except AssertionError:
-                print('Somethings wrong with the coin order')
+                data_coin = data_all['result'][idx]
+                try:
+                    assert data_coin['MarketName'] == pair.replace('_','-')
+                except AssertionError:
+                    print('Somethings wrong with the coin order')
+                
+                price = data_coin['Last']
+                volume = data_coin['BaseVolume']
+                ask = data_coin['Ask']
+                bid = data_coin['Bid']
+            
+            except:
+                print(pair,' is not listed anymore on Bittrex!')
+                price = 0.0
+                volume = 0.0
+                ask = 0.0
+                bid = 0.0
 
-            price = data_coin['Last']
-            volume = data_coin['BaseVolume']
-            ask = data_coin['Ask']
-            bid = data_coin['Bid']
 
             if idx < len(self.pairs)-1:
                 price_vec += str(price)+', '
