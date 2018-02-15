@@ -79,7 +79,7 @@ class bittrexStream(object):
         bid_vec = ''
         for idx, pair in enumerate(self.pairs):
             try:
-                data_coin = data_all['result'][idx]
+                data_coin = data_all[idx]
 
                 try:
                     assert data_coin['MarketName'] == pair.replace('_','-')
