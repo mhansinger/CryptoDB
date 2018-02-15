@@ -63,7 +63,12 @@ class bittrexStream(object):
 
     def getTicker(self):
         # get the Data from poloniex
-        data = requests.get(self.url).json()
+        try:
+            data = requests.get(self.url).json()['result']
+        except ValueError:
+            print('There was a ValueError in getTicker')
+            time.sleep(60)
+            return self.getTicker()
         return data
 
     def updateDB(self):
@@ -75,20 +80,16 @@ class bittrexStream(object):
         for idx, pair in enumerate(self.pairs):
             try:
                 data_coin = data_all['result'][idx]
-<<<<<<< Updated upstream
+
                 try:
                     assert data_coin['MarketName'] == pair.replace('_','-')
                 except AssertionError:
                     print('Somethings wrong with the coin order')
-                
-=======
-                assert data_coin['MarketName'] == pair.replace('_','-')
->>>>>>> Stashed changes
+
                 price = data_coin['Last']
                 volume = data_coin['BaseVolume']
                 ask = data_coin['Ask']
                 bid = data_coin['Bid']
-<<<<<<< Updated upstream
             
             except:
                 print(pair,' is not listed anymore on Bittrex!')
@@ -98,14 +99,6 @@ class bittrexStream(object):
                 bid = 0.0
                 pass
 
-=======
-            except AssertionError:
-                print('Somethings wrong with the coin order')
-                price = 0
-                volume = 0
-                ask = 0
-                bid = 0
->>>>>>> Stashed changes
 
             if idx < len(self.pairs)-1:
                 price_vec += str(price)+','

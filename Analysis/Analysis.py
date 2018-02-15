@@ -6,10 +6,10 @@ import copy
 import matplotlib.pyplot as plt
 
 
-price = pd.read_csv('BTC_PAIRS_PRICE')
-ask = pd.read_csv('BTC_PAIRS_ASK')
-bid = pd.read_csv('BTC_PAIRS_BID')
-volume = pd.read_csv('BTC_PAIRS_VOLUME')
+price = pd.read_csv('BTC_PAIRS_PRICE_n')
+ask = pd.read_csv('BTC_PAIRS_ASK_n')
+bid = pd.read_csv('BTC_PAIRS_BID_n')
+volume = pd.read_csv('BTC_PAIRS_VOLUME_n')
 
 # get the columns
 pairs = list(volume.columns)
@@ -56,7 +56,7 @@ trades = 0
 lost = 0
 badtrade = 0
 exittime = 150
-dropLimit=-0.025 #-0.026
+dropLimit=-0.03 #-0.026
 gain=1.012
 peak=0.012
 badTradeList = []
@@ -113,7 +113,7 @@ for i in range(20, 14000):
             buy_id = i
             trades += 1
             print('trades: ', trades)
-            rolling = price[thisCoin].rolling(20).mean().iloc[i]
+            rolling = price[thisCoin].rolling(30).mean().iloc[i]
             print('Rolling mean: ', rolling)
             print(' ')
     elif bought:
