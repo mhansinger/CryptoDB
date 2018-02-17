@@ -153,7 +153,22 @@ for i in range(len(badTradeList)):
 
 plt.show()
 
+# plot all the log returns
+count=0
+for p in pairs:
+    #ptc_change[p] = price[p].ptc_change()
+    #plt.plot(log_return[p],'.k')
+    for i, val in enumerate(log_return[p]):
+        if val < -0.03:
+            plt.plot(i,val, '.r')
+            count+=1
+        else:
+            plt.plot(i,val, '.k')
 
+total= len(pairs)*log_return.iloc[0]
+print('% of drops: ',count/total)
+
+plt.show()
 
 
 #def RSI(i,volList):

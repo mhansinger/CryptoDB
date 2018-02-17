@@ -5,7 +5,7 @@ import requests
 
 
 class bittrexStream(object):
-    def __init__(self,baseCurrency = 'BTC', db='bittrex.db', url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'):
+    def __init__(self, baseCurrency = 'BTC', db='bittrex.db', url = 'https://bittrex.com/api/v1.1/public/getmarketsummaries'):
         '''
         Get % change from Bittrex
         '''
@@ -15,16 +15,18 @@ class bittrexStream(object):
         self.base = baseCurrency
         data = requests.get(self.url).json()
         self.pairs = []
+        self.pairlist = []
         self.insert_price = None
         self.insert_volume = None
         self.insert_ask = None
         self.insert_bid = None
 
-        # fill up the pairs to stream, accroding to base currency
+        # fill up the pairs to stream, according to base currency
         for p in range(len(data['result'])):
             thispair= data['result'][p]['MarketName']
             if thispair[0:3] == self.base:
                 # this replacement has to be done for the sqlite database...
+                self.pairlist.append(thispair)
                 thispair=thispair.replace('-','_')
                 print(thispair)
                 self.pairs.append(thispair)
@@ -62,7 +64,7 @@ class bittrexStream(object):
             print("create your data base first!")
 
     def getTicker(self):
-        # get the Data from poloniex
+        # fetch the data from the exchange
         try:
             data = requests.get(self.url).json()['result']
         except ValueError:
@@ -77,12 +79,19 @@ class bittrexStream(object):
         volume_vec = ''
         ask_vec = ''
         bid_vec = ''
-        for idx, pair in enumerate(self.pairs):
+        # check the index list
+        index_list = []
+        for i in range(0,len(data_all)):
+            if data_all[i]['MarketName'] in self.pairlist:
+                index_list.append(i)
+
+        # independent counter for pairlist
+        count = 0
+        for idx in index_list:
             try:
                 data_coin = data_all[idx]
-
                 try:
-                    assert data_coin['MarketName'] == pair.replace('_','-')
+                    assert data_coin['MarketName'] == self.pairlist[count]
                 except AssertionError:
                     print('Somethings wrong with the coin order')
 
@@ -92,7 +101,7 @@ class bittrexStream(object):
                 bid = data_coin['Bid']
             
             except:
-                print(pair,' is not listed anymore on Bittrex!')
+                print('Coin is not listed anymore on Bittrex!')
                 price = 0.0
                 volume = 0.0
                 ask = 0.0
@@ -111,6 +120,7 @@ class bittrexStream(object):
                 ask_vec += str(ask)
                 bid_vec += str(bid)
                 print(idx)
+            count+=1
 
         date = time.strftime("%m.%d.%y_%H:%M:%S", time.localtime())
         unixtime = int(time.time())
