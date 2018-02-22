@@ -5,11 +5,12 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 
+SMALL=1e-15
 
-price = pd.read_csv('BTC_PAIRS_PRICE_n')
-ask = pd.read_csv('BTC_PAIRS_ASK_n')
-bid = pd.read_csv('BTC_PAIRS_BID_n')
-volume = pd.read_csv('BTC_PAIRS_VOLUME_n')
+price = pd.read_csv('BTC_PAIRS_PRICE')
+ask = pd.read_csv('BTC_PAIRS_ASK')
+bid = pd.read_csv('BTC_PAIRS_BID')
+volume = pd.read_csv('BTC_PAIRS_VOLUME')
 
 # get the columns
 pairs = list(volume.columns)
@@ -17,7 +18,7 @@ pairs = [p for p in pairs if p[0:3]=='BTC']
 
 log_return = copy.copy(volume)
 
-def rsiFunc(prices, n=60):
+def rsiFunc(prices, index,n=60):
     deltas = np.diff(prices)
     seed = deltas[:n+1]
     up = seed[seed>=0].sum()/n
@@ -42,27 +43,36 @@ def rsiFunc(prices, n=60):
         rs = up/down
         rsi[i] = 100. - 100./(1.+rs)
 
-    return rsi
+    return rsi[index]
 
-
+############################
+# feature Engineering
+feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
+                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30' ,'std_60' ,'vol_30',
+                                    'vol_60','label']
+features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
+features_df.columns = feature_list
+###########################
 
 #Works
 
-minute_shift=5
+minute_shift=3
 bought = False
 buy_price = 0
 invest = 100
 trades = 0
 lost = 0
 badtrade = 0
-exittime = 150
-dropLimit=-0.03 #-0.026
-gain=1.012
-peak=0.012
+exittime = 500
+dropLimit=-0.0295 #-0.026
+gain=1.0115
+peak=0.01
 badTradeList = []
+goodTradeList = []
 badTradePos = []
+trade_time = []
 
-log_return = price.copy()
+log_return = volume.copy()
 for p in pairs:
     #ptc_change[p] = price[p].ptc_change()
     log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
@@ -71,7 +81,7 @@ def peak_check(i,thisList):
     maxDrop = log_return[thisList].iloc[i].min()
     maxDropCoin = log_return[thisList].iloc[i].idxmin()
     maxVolume = volume[maxDropCoin].iloc[i]
-    if log_return[maxDropCoin].iloc[(i-10):i].max()>peak and maxDrop < dropLimit:
+    if log_return[maxDropCoin].iloc[(i-10):i].max() > peak and maxDrop < dropLimit:
         #remove the 'bad' coin and run again the check
         newList = copy.copy(thisList)
         newList.remove(maxDropCoin)
@@ -82,14 +92,14 @@ def peak_check(i,thisList):
 
 # analysis of all coins
 thisCoin=None
-#for i in range(20, len(log_return)-1):
 for i in range(20, 14000):
+#for i in range(20, len(log_return)-1):
     if bought is False:
         # NEW!!!
         # find first relevant Coins which fulfil VOL criteria, then check for drop in log return
         volList = []
         for loc, coin in enumerate(pairs):
-            if volume[coin].iloc[-1] > 1000:
+            if volume[coin].iloc[i] > 300:
                 volList.append(coin)
 
         maxDrop, maxDropCoin, maxVolume = peak_check(i,thisList=volList)
@@ -114,22 +124,31 @@ for i in range(20, 14000):
             trades += 1
             print('trades: ', trades)
             rolling = price[thisCoin].rolling(30).mean().iloc[i]
-            print('Rolling mean: ', rolling)
+            print('Rolling mean: ', round(rolling,5))
             print(' ')
     elif bought:
-        if bid[thisCoin].iloc[i] >= gain* buy_price or i > buy_id + exittime:
+        if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or bid[thisCoin].iloc[i] < buy_price*0.965:
             invest = coins * bid[thisCoin].iloc[i]
             invest = invest * (1. - 0.005)
             print('sold at: ', bid[thisCoin].iloc[i])
             print('Investment is: ', invest)
-            if i > buy_id + exittime and bid[thisCoin].iloc[i] < buy_price:
+            if bid[thisCoin].iloc[i] < buy_price: #and i > buy_id + exittime:
                 badtrade += 1
                 lost += coins * (buy_price - bid[thisCoin].iloc[i])
                 print('Bad Trade!')
                 print(thisCoin)
-                print(log_return[thisCoin].iloc[(i-20-exittime):(i-exittime)].max())
+                #print(log_return[thisCoin].iloc[(i-10-exittime):(i-exittime)].max())
                 badTradeList.append(thisCoin)
                 badTradePos.append(i-exittime)
+                # UPDATE the FEATURE MATRIX
+                features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
+
+            else:
+                # good trade
+                features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
+                trade_time.append(i-buy_id)
+                goodTradeList.append(thisCoin)
+
             print(i)
             print(' ')
             # because we sold
@@ -137,11 +156,13 @@ for i in range(20, 14000):
             thisCoin = None
 
     #print(thisCoin)
-print('bad trades %: ', (badtrade / trades) * 100)
+print('bad trades %: ', (badtrade / (trades+SMALL)) * 100)
 print('Bad trades lost: ',lost)
 print('Bad trade list: ',badTradeList)
+print('Good trade list: ',goodTradeList)
+print('Good trade time:', trade_time)
 
-for i in range(len(badTradeList)):
+for i in range(14000):
     plt.figure(i)
     plt.plot(price[badTradeList[i]],'k')
     plt.plot(ask[badTradeList[i]],'b:')
@@ -151,27 +172,92 @@ for i in range(len(badTradeList)):
     plt.plot(j+exittime, bid[badTradeList[i]].iloc[j+exittime], 'r>')
     plt.title(badTradeList[i])
 
-plt.show()
+plt.show(block=False)
+
 
 # plot all the log returns
+dropLimit=-0.025
 count=0
+drop_list=[]
+fail_list = []
+log_return_all=[]
+plt.figure(100)
+invest=100
+
 for p in pairs:
     #ptc_change[p] = price[p].ptc_change()
-    #plt.plot(log_return[p],'.k')
-    for i, val in enumerate(log_return[p]):
-        if val < -0.03:
-            plt.plot(i,val, '.r')
+    plt.plot(log_return[p],'.k')
+    log_return_all.insert(-1,list(log_return[p].values))
+    can_buy = 0
+    #for i in range(0,len(log_return[p])):
+    for i in range(0, 14000):
+        if log_return[p][i] < dropLimit and volume[p][i]>200 and log_return[p].iloc[(i-10):i].max()<peak:
+            plt.plot(i,log_return[p][i], '.r')
             count+=1
-        else:
-            plt.plot(i,val, '.k')
+            drop_list.append(p)
+            if i>=can_buy:
+                can_buy = i + exittime
+                if any(bid[p][i + 1:(i + exittime)] > ask[p][i] * gain):
+                    #invest = (invest * 0.995) * gain
+                    print('Success')
 
-total= len(pairs)*log_return.iloc[0]
-print('% of drops: ',count/total)
+                else:
+                    print('Fail: ', p)
+                    #invest = (invest) * min((bid[p][i] / ask[p][i + exittime]),1.) * 0.995
+                    #fail_list.append(p)
 
-plt.show()
+        elif log_return[p][i] < dropLimit:
+            plt.plot(i,log_return[p][i], '.b')
+
+print('Invest is: ',invest)
+plt.title('2 min log-return of all coins')
+
+plt.show(block=False)
 
 
 #def RSI(i,volList):
+
+
+
+def writeFeatures(idx_buy,label,features ,coin):
+    '''
+    This function writes all selected features into a matrix
+    logsum_30: cumulative log return over 30 min
+    logsum_60: cumulative log return over 60 min
+    logsum_180: cumulative log return over 180 min
+    minlog_30: minimum log return in the last 30 min
+    maxlog_30: maximum log return in the last 30 min
+    ratio_roll_30: ratio of 30 min rolling mean to buy price
+    ratio_roll_60: ratio of 60 min rolling mean to buy price
+    std_30: rolling standard deviation over 30 min
+    std_60: rolling standard deviation over 60 min
+    vol_30: ratio of current trading vol to 30 min rolling
+    vol_60: ratio of current trading vol to 60 min rolling
+    RSI_60: RSI of ask price
+    j:      Index where the coin was bought
+    label:  1 for successful trade, 0 for fail trade
+    '''
+    j=idx_buy
+    #logsum_30 = log_return[coin].iloc[j-30:j].sum()
+    logsum_60 = log_return[coin].iloc[j - 60:j].sum()
+    logsum_180 = log_return[coin].iloc[j - 180:j].sum()
+    minlog_30 = log_return[coin].iloc[j-30:j].min()
+    maxlog_30 = log_return[coin].iloc[j - 30:j].max()
+    ratio_roll_30 = ask[coin].iloc[j]/ask[coin].rolling(30).mean().iloc[j] -1.
+    ratio_roll_60 = ask[coin].iloc[j]/ask[coin].rolling(60).mean().iloc[j] -1.
+    std_30 = ask[coin].rolling(30).std().iloc[j]/ask[coin].rolling(30).mean().iloc[j]
+    std_60 = ask[coin].rolling(60).std().iloc[j]/ask[coin].rolling(60).mean().iloc[j]
+    vol_30 = volume[coin].iloc[j]/volume[coin].rolling(30).mean().iloc[j] -1.
+    vol_60 = volume[coin].iloc[j]/volume[coin].rolling(60).mean().iloc[j] -1.
+    #RSI_60 = rsiFunc(ask[coin],index=j,n=60)
+    return features.append({'id':j,'Coin':coin,'logsum_60':logsum_60 ,'logsum_180':logsum_180 ,
+                            'minlog_30':minlog_30 ,'maxlog_30':maxlog_30,'ratio_roll_30':ratio_roll_30 ,
+                            'ratio_roll_60':ratio_roll_60 ,'std_30':std_30 ,'std_60':std_60 ,'vol_30':vol_30,
+                                    'vol_60':vol_60,'label':label},ignore_index=True)
+
+
+
+
 
 
 ''' 
@@ -184,7 +270,7 @@ trades = 0
 lost = 0
 badtrade = 0
 exittime = 150
-dropLimit=-0.028 #-0.026
+dropLimit=-0.03 #-0.026
 gain=1.014
 peak=0.012
 badTradeList = []
@@ -296,3 +382,13 @@ def qqplot(log):
     pylab.show()
             '''
 # best is to use the 1 min log series with -1.5% and sell for a plus of 2%, exit after 200 min any way. check this with different series.
+
+for t in range(len(test)):
+    model = ARIMA(history, order=(5,1,0))
+    model_fit = model.fit(disp=0)
+    output = model_fit.forecast()
+    yhat = output[0]
+    predictions.append(yhat)
+    obs = test[t]
+    history.append(obs)
+    print('predicted=%f, expected=%f' % (yhat, obs))

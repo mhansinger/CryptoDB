@@ -81,9 +81,12 @@ class bittrexStream(object):
         bid_vec = ''
         # check the index list
         index_list = []
+        id_count=0
         for i in range(0,len(data_all)):
-            if data_all[i]['MarketName'] in self.pairlist:
-                index_list.append(i)
+            if id_count< len(self.pairlist):
+                if data_all[i]['MarketName'] in self.pairlist:
+                    index_list.append(i)
+                    id_count+=1
 
         # independent counter for pairlist
         count = 0
