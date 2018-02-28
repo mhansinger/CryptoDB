@@ -1,24 +1,32 @@
 # Analyse the BITTREX stream data
-
+import sqlite3
 import pandas as pd
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+#from sklearn.
 
 SMALL=1e-15
+############################################
+# get the data from the sqlite database
 
-price = pd.read_csv('BTC_PAIRS_PRICE')
-ask = pd.read_csv('BTC_PAIRS_ASK')
-bid = pd.read_csv('BTC_PAIRS_BID')
-volume = pd.read_csv('BTC_PAIRS_VOLUME')
+conn = sqlite3.connect('bittrex.db')
+price = pd.read_sql("SELECT * FROM BTC_PAIRS_PRICE;",conn)
+ask = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
+bid = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
+volume = pd.read_sql("SELECT * FROM BTC_PAIRS_VOLUME;",conn)
+conn.close()
+############################################
 
-# get the columns
-pairs = list(volume.columns)
-pairs = [p for p in pairs if p[0:3]=='BTC']
+# get the columns, only consider BTC pairs
+pairs_all = list(volume.columns)
+pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 
+# create a log_return data frame from volume, to be filled later
 log_return = copy.copy(volume)
 
 def rsiFunc(prices, index,n=60):
+    # computes the RSI over 60 min
     deltas = np.diff(prices)
     seed = deltas[:n+1]
     up = seed[seed>=0].sum()/n
@@ -46,7 +54,7 @@ def rsiFunc(prices, index,n=60):
     return rsi[index]
 
 ############################
-# feature Engineering
+# feature Engineering, name the features
 feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
                                     'ratio_roll_30' ,'ratio_roll_60' ,'std_30' ,'std_60' ,'vol_30',
                                     'vol_60','label']
@@ -54,63 +62,63 @@ features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
 features_df.columns = feature_list
 ###########################
 
-#Works
 
-minute_shift=3
-bought = False
-buy_price = 0
+###########################
+#Parameter to be tuned!
+minute_shift = 3
 invest = 100
+exittime = 800
+dropLimit = -0.028 #-0.026
+dropLimit_low = -0.055
+gain = 1.0115
+peak = 0.012
+maxloss = 0.96
+coinVolume = 300
+###########################
+
+buy_price = 0
 trades = 0
 lost = 0
 badtrade = 0
-exittime = 500
-dropLimit=-0.0295 #-0.026
-gain=1.0115
-peak=0.01
 badTradeList = []
 goodTradeList = []
 badTradePos = []
 trade_time = []
+bought = False
 
-log_return = volume.copy()
 for p in pairs:
-    #ptc_change[p] = price[p].ptc_change()
+    #computes the log returns based on the minute_shift
     log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
 
 def peak_check(i,thisList):
+    # checks if in the last 10 min a peak of 1% occured
     maxDrop = log_return[thisList].iloc[i].min()
     maxDropCoin = log_return[thisList].iloc[i].idxmin()
     maxVolume = volume[maxDropCoin].iloc[i]
-    if log_return[maxDropCoin].iloc[(i-10):i].max() > peak and maxDrop < dropLimit:
+    if log_return[maxDropCoin].iloc[(i-10):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
         #remove the 'bad' coin and run again the check
         newList = copy.copy(thisList)
         newList.remove(maxDropCoin)
         return peak_check(i,thisList=newList)
     else:
-        #print(log_return[maxDropCoin].iloc[(i-60):i].max())
         return maxDrop, maxDropCoin, maxVolume
 
-# analysis of all coins
+# this runs the analysis, simulated trading
 thisCoin=None
-for i in range(20, 14000):
-#for i in range(20, len(log_return)-1):
+#for i in range(20, 14000):
+for i in range(20, len(log_return)-1):
     if bought is False:
         # NEW!!!
         # find first relevant Coins which fulfil VOL criteria, then check for drop in log return
         volList = []
         for loc, coin in enumerate(pairs):
-            if volume[coin].iloc[i] > 300:
+            if volume[coin].iloc[i] > coinVolume:
                 volList.append(coin)
 
+        # do the peak check stuff and get the appropriate coins
         maxDrop, maxDropCoin, maxVolume = peak_check(i,thisList=volList)
 
-        if maxDrop<dropLimit:
-            # if log_ETH.iloc[ind] < -0.0125
-
-            # check the RSI
-            # print('RSI is:')
-            # print(rsiFunc(price[maxDropCoin],20))
-            # print('')
+        if maxDrop<dropLimit:# and maxDrop > dropLimit_low:
 
             thisCoin = maxDropCoin
             coins = invest / ask[thisCoin].iloc[i]
@@ -126,8 +134,9 @@ for i in range(20, 14000):
             rolling = price[thisCoin].rolling(30).mean().iloc[i]
             print('Rolling mean: ', round(rolling,5))
             print(' ')
+
     elif bought:
-        if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or bid[thisCoin].iloc[i] < buy_price*0.965:
+        if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or bid[thisCoin].iloc[i] < buy_price*maxloss:
             invest = coins * bid[thisCoin].iloc[i]
             invest = invest * (1. - 0.005)
             print('sold at: ', bid[thisCoin].iloc[i])
@@ -175,49 +184,6 @@ for i in range(14000):
 plt.show(block=False)
 
 
-# plot all the log returns
-dropLimit=-0.025
-count=0
-drop_list=[]
-fail_list = []
-log_return_all=[]
-plt.figure(100)
-invest=100
-
-for p in pairs:
-    #ptc_change[p] = price[p].ptc_change()
-    plt.plot(log_return[p],'.k')
-    log_return_all.insert(-1,list(log_return[p].values))
-    can_buy = 0
-    #for i in range(0,len(log_return[p])):
-    for i in range(0, 14000):
-        if log_return[p][i] < dropLimit and volume[p][i]>200 and log_return[p].iloc[(i-10):i].max()<peak:
-            plt.plot(i,log_return[p][i], '.r')
-            count+=1
-            drop_list.append(p)
-            if i>=can_buy:
-                can_buy = i + exittime
-                if any(bid[p][i + 1:(i + exittime)] > ask[p][i] * gain):
-                    #invest = (invest * 0.995) * gain
-                    print('Success')
-
-                else:
-                    print('Fail: ', p)
-                    #invest = (invest) * min((bid[p][i] / ask[p][i + exittime]),1.) * 0.995
-                    #fail_list.append(p)
-
-        elif log_return[p][i] < dropLimit:
-            plt.plot(i,log_return[p][i], '.b')
-
-print('Invest is: ',invest)
-plt.title('2 min log-return of all coins')
-
-plt.show(block=False)
-
-
-#def RSI(i,volList):
-
-
 
 def writeFeatures(idx_buy,label,features ,coin):
     '''
@@ -241,7 +207,7 @@ def writeFeatures(idx_buy,label,features ,coin):
     #logsum_30 = log_return[coin].iloc[j-30:j].sum()
     logsum_60 = log_return[coin].iloc[j - 60:j].sum()
     logsum_180 = log_return[coin].iloc[j - 180:j].sum()
-    minlog_30 = log_return[coin].iloc[j-30:j].min()
+    minlog_30 = log_return[coin].iloc[j - 30:j].min()
     maxlog_30 = log_return[coin].iloc[j - 30:j].max()
     ratio_roll_30 = ask[coin].iloc[j]/ask[coin].rolling(30).mean().iloc[j] -1.
     ratio_roll_60 = ask[coin].iloc[j]/ask[coin].rolling(60).mean().iloc[j] -1.
@@ -319,6 +285,44 @@ badTradePos = []
 
 
 
+# plot all the log returns
+dropLimit=-0.025
+count=0
+drop_list=[]
+fail_list = []
+log_return_all=[]
+plt.figure(100)
+invest=100
+
+for p in pairs:
+    #ptc_change[p] = price[p].ptc_change()
+    plt.plot(log_return[p],'.k')
+    log_return_all.insert(-1,list(log_return[p].values))
+    can_buy = 0
+    #for i in range(0,len(log_return[p])):
+    for i in range(0, 14000):
+        if log_return[p][i] < dropLimit and volume[p][i]>200 and log_return[p].iloc[(i-10):i].max()<peak:
+            plt.plot(i,log_return[p][i], '.r')
+            count+=1
+            drop_list.append(p)
+            if i>=can_buy:
+                can_buy = i + exittime
+                if any(bid[p][i + 1:(i + exittime)] > ask[p][i] * gain):
+                    #invest = (invest * 0.995) * gain
+                    print('Success')
+
+                else:
+                    print('Fail: ', p)
+                    #invest = (invest) * min((bid[p][i] / ask[p][i + exittime]),1.) * 0.995
+                    #fail_list.append(p)
+
+        elif log_return[p][i] < dropLimit:
+            plt.plot(i,log_return[p][i], '.b')
+
+print('Invest is: ',invest)
+plt.title('2 min log-return of all coins')
+
+plt.show(block=False)
 
 
 XETH_series = pd.read_csv('XETHXXBT_Series.csv')
