@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
-#from sklearn.
 
 SMALL = 1e-15
 ############################################
@@ -57,9 +56,9 @@ def rsiFunc(prices, index, n = 60):
 
 
 ###########################
-#Parameter to be tuned!
+#Parameters to be tuned!
 minute_shift = 3
-invest = 100
+
 exittime = 500
 dropLimit = -0.024 #-0.026
 dropLimit_low = -0.055
@@ -69,20 +68,12 @@ maxloss = 0.965
 coinVolume = 300
 ###########################
 
-buy_price = 0
-trades = 0
-lost = 0
-badtrade = 0
-badTradeList = []
-goodTradeList = []
-badTradePos = []
-trade_time = []
-bought = False
 
 ############################
 # feature Engineering, name the features
+# IMPORTANT! It has to be consistent with the 'write_features' function (see below)!
 feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
-                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30' ,'std_60' ,'vol_30',
+                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30','std_60','vol_30',
                                     'vol_60','label']
 features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
 features_df.columns = feature_list
@@ -105,73 +96,95 @@ def peak_check(i,thisList):
     else:
         return maxDrop, maxDropCoin, maxVolume
 
-# this runs the analysis, simulated trading
-thisCoin=None
-#for i in range(20, 14000):
-for i in range(20, len(log_return)-1):
-    if bought is False:
-        # NEW!!!
-        # find first relevant Coins which fulfil VOL criteria, then check for drop in log return
-        volList = []
-        for loc, coin in enumerate(pairs):
-            if volume[coin].iloc[i] > coinVolume:
-                volList.append(coin)
 
-        # do the peak check stuff and get the appropriate coins
-        maxDrop, maxDropCoin, maxVolume = peak_check(i,thisList=volList)
+###########################
+# backtesting analysis
+# MAIN function
+def run_analysis():
+    # reset some parameters
+    buy_price = 0
+    trades = 0
+    lost = 0
+    badtrade = 0
+    badTradeList = []
+    goodTradeList = []
+    badTradePos = []
+    trade_time = []
+    bought = False
+    invest = 100
 
-        if maxDrop<dropLimit:# and maxDrop > dropLimit_low:
+    # this runs the analysis, simulated trading
+    thisCoin = None
+    # for i in range(20, 14000):
+    for i in range(20, len(log_return) - 1):
+        if bought is False:
+            # NEW!!!
+            # find first relevant Coins which fulfil VOL criteria, then check for drop in log return
+            volList = []
+            for loc, coin in enumerate(pairs):
+                if volume[coin].iloc[i] > coinVolume:
+                    volList.append(coin)
 
-            thisCoin = maxDropCoin
-            coins = invest / ask[thisCoin].iloc[i]
-            bought = True
-            buy_price = ask[thisCoin].iloc[i]
-            print(thisCoin)
-            print(maxDrop)
-            print('bought at: ', buy_price)
-            print(i)
-            buy_id = i
-            trades += 1
-            print('trades: ', trades)
-            rolling = price[thisCoin].rolling(30).mean().iloc[i]
-            print('Rolling mean: ', round(rolling,5))
-            print(' ')
+            # do the peak check stuff and get the appropriate coins
+            maxDrop, maxDropCoin, maxVolume = peak_check(i, thisList=volList)
 
-    elif bought:
-        if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or bid[thisCoin].iloc[i] < buy_price*maxloss:
-            invest = coins * bid[thisCoin].iloc[i]
-            invest = invest * (1. - 0.005)
-            print('sold at: ', bid[thisCoin].iloc[i])
-            print('Investment is: ', invest)
-            if bid[thisCoin].iloc[i] < buy_price: #and i > buy_id + exittime:
-                badtrade += 1
-                lost += coins * (buy_price - bid[thisCoin].iloc[i])
-                print('Bad Trade!')
+            if maxDrop < dropLimit:  # and maxDrop > dropLimit_low:
+
+                thisCoin = maxDropCoin
+                coins = invest / ask[thisCoin].iloc[i]
+                bought = True
+                buy_price = ask[thisCoin].iloc[i]
                 print(thisCoin)
-                #print(log_return[thisCoin].iloc[(i-10-exittime):(i-exittime)].max())
-                badTradeList.append(thisCoin)
-                badTradePos.append(i-exittime)
-                # UPDATE the FEATURE MATRIX
-                features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
+                print(maxDrop)
+                print('bought at: ', buy_price)
+                print(i)
+                buy_id = i
+                trades += 1
+                print('trades: ', trades)
+                rolling = price[thisCoin].rolling(30).mean().iloc[i]
+                print('Rolling mean: ', round(rolling, 5))
+                print(' ')
 
-            else:
-                # good trade
-                features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
-                trade_time.append(i-buy_id)
-                goodTradeList.append(thisCoin)
+        elif bought:
+            if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or \
+                    bid[thisCoin].iloc[i] < buy_price * maxloss:
+                invest = coins * bid[thisCoin].iloc[i]
+                invest = invest * (1. - 0.005)
+                print('sold at: ', bid[thisCoin].iloc[i])
+                print('Investment is: ', invest)
+                if bid[thisCoin].iloc[i] < buy_price:  # and i > buy_id + exittime:
+                    badtrade += 1
+                    lost += coins * (buy_price - bid[thisCoin].iloc[i])
+                    print('Bad Trade!')
+                    print(thisCoin)
+                    # print(log_return[thisCoin].iloc[(i-10-exittime):(i-exittime)].max())
+                    badTradeList.append(thisCoin)
+                    badTradePos.append(i - exittime)
+                    # UPDATE the FEATURE MATRIX
+                    # features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
 
-            print(i)
-            print(' ')
-            # because we sold
-            bought = False
-            thisCoin = None
+                else:
+                    # good trade
+                    # features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
+                    trade_time.append(i - buy_id)
+                    goodTradeList.append(thisCoin)
 
-    #print(thisCoin)
-print('bad trades %: ', round((badtrade / (trades+SMALL)) * 100,2))
-print('Bad trades lost: ',round(lost,2))
-print('Bad trade list: ',badTradeList)
-print('Good trade list: ',goodTradeList)
-print('Good trade time:', trade_time)
+                print(i)
+                print(' ')
+                # because we sold
+                bought = False
+                thisCoin = None
+
+        # print(thisCoin)
+    print('bad trades %: ', round((badtrade / (trades + SMALL)) * 100, 2))
+    print('Bad trades lost: ', round(lost, 2))
+    print('Bad trade list: ', badTradeList)
+    print('Good trade list: ', goodTradeList)
+    print('Good trade time:', trade_time)
+
+###########################
+
+
 
 for i in range(14000):
     plt.figure(i)
@@ -241,7 +254,7 @@ def fit_RF():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
 
     clf.fit(X_train, y_train)
-    clf.score(X_test, y_test)
+    print(clf.score(X_test, y_test))
 
 
 
@@ -405,15 +418,7 @@ import pylab
 def qqplot(log):
     stats.probplot(log, dist="norm", plot=pylab)
     pylab.show()
-            '''
-# best is to use the 1 min log series with -1.5% and sell for a plus of 2%, exit after 200 min any way. check this with different series.
 
-for t in range(len(test)):
-    model = ARIMA(history, order=(5,1,0))
-    model_fit = model.fit(disp=0)
-    output = model_fit.forecast()
-    yhat = output[0]
-    predictions.append(yhat)
-    obs = test[t]
-    history.append(obs)
-    print('predicted=%f, expected=%f' % (yhat, obs))
+ best is to use the 1 min log series with -1.5% and sell for a plus of 2%, exit after 200 min any way. check this with different series.
+
+'''
