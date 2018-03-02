@@ -21,6 +21,9 @@ conn.close()
 pairs_all = list(volume.columns)
 pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 
+# Remove ZCL
+#pairs.remove('BTC_ZCL')
+
 # create a log_return data frame from volume, to be filled later
 log_return = copy.copy(volume)
 
