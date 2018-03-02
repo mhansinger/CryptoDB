@@ -23,21 +23,21 @@ class bittrexStream(object):
 
         # fill up the pairs to stream, according to base currency
         for p in range(len(data['result'])):
-            thispair= data['result'][p]['MarketName']
+            thispair = data['result'][p]['MarketName']
             if thispair[0:3] == self.base:
                 # this replacement has to be done for the sqlite database...
                 self.pairlist.append(thispair)
-                thispair=thispair.replace('-','_')
+                thispair = thispair.replace('-','_')
                 print(thispair)
                 self.pairs.append(thispair)
 
         self.pair_vector = self.pairs[0] + ' REAL'
         for p in range(1,len(self.pairs)):
-            self.pair_vector+=', '+ self.pairs[p] + ' REAL'
+            self.pair_vector += ', '+ self.pairs[p] + ' REAL'
 
         self.col_vector=self.pairs[0]
         for p in range(1,len(self.pairs)):
-            self.col_vector+=', '+ self.pairs[p]
+            self.col_vector += ', '+ self.pairs[p]
 
         self.col_vector = 'UNIX_Time,  ' + self.col_vector
         self.columns = 'UNIX_Time,  ' + self.pair_vector
@@ -81,15 +81,22 @@ class bittrexStream(object):
         bid_vec = ''
         # check the index list
         index_list = []
-        id_count=0
+        id_count = 0
+        # if Bittrex adds a new coin pari you would get an error in your database.
+        # So, generate index_list of the current BTC-pairs from bittrex which are in your database
         for i in range(0,len(data_all)):
-            if id_count< len(self.pairlist):
-                if data_all[i]['MarketName'] in self.pairlist:
+            if id_count < len(self.pairlist):
+                if data_all[i]['MarketName'] == self.pairlist[id_count]:
                     index_list.append(i)
-                    id_count+=1
+                    id_count += 1
+                else:
+                    print('Coin pair is not in your database: ',data_all[i]['MarketName'])
+                    pass
 
         # independent counter for pairlist
         count = 0
+        # loop over index_list, check again if the coin names are correct and then construct the string vectors
+        # to be inserted into the sql database
         for idx in index_list:
             try:
                 data_coin = data_all[idx]
@@ -111,29 +118,31 @@ class bittrexStream(object):
                 bid = 0.0
                 pass
 
-
             if idx < len(self.pairs)-1:
                 price_vec += str(price)+','
                 volume_vec += str(volume)+','
                 ask_vec += str(ask)+','
                 bid_vec += str(bid)+','
+            # do not add ',' to the last entry
             else:
                 price_vec += str(price)
                 volume_vec += str(volume)
                 ask_vec += str(ask)
                 bid_vec += str(bid)
                 print(idx)
-            count+=1
+            # increase counter
+            count += 1
 
         date = time.strftime("%m.%d.%y_%H:%M:%S", time.localtime())
         unixtime = int(time.time())
 
-        # connect to DB
+        # string vectors to update the sql database
         self.insert_price = "INSERT INTO BTC_PAIRS_PRICE (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + price_vec + ")"
         self.insert_volume = "INSERT INTO BTC_PAIRS_VOLUME (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + volume_vec + ")"
         self.insert_ask = "INSERT INTO BTC_PAIRS_ASK (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + ask_vec + ")"
         self.insert_bid = "INSERT INTO BTC_PAIRS_BID (" + self.col_vector + ") " + " VALUES (" + str(unixtime) + "," + bid_vec + ")"
 
+        # connect to DB
         conn = sqlite3.connect(self.path)
         c = conn.cursor()
         c.execute(self.insert_price)

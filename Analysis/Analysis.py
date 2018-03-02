@@ -6,7 +6,7 @@ import copy
 import matplotlib.pyplot as plt
 #from sklearn.
 
-SMALL=1e-15
+SMALL = 1e-15
 ############################################
 # get the data from the sqlite database
 
@@ -25,7 +25,7 @@ pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 # create a log_return data frame from volume, to be filled later
 log_return = copy.copy(volume)
 
-def rsiFunc(prices, index,n=60):
+def rsiFunc(prices, index, n = 60):
     # computes the RSI over 60 min
     deltas = np.diff(prices)
     seed = deltas[:n+1]
@@ -53,26 +53,19 @@ def rsiFunc(prices, index,n=60):
 
     return rsi[index]
 
-############################
-# feature Engineering, name the features
-feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
-                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30' ,'std_60' ,'vol_30',
-                                    'vol_60','label']
-features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
-features_df.columns = feature_list
-###########################
+
 
 
 ###########################
 #Parameter to be tuned!
 minute_shift = 3
 invest = 100
-exittime = 800
-dropLimit = -0.028 #-0.026
+exittime = 500
+dropLimit = -0.024 #-0.026
 dropLimit_low = -0.055
-gain = 1.0115
+gain = 1.009
 peak = 0.012
-maxloss = 0.96
+maxloss = 0.965
 coinVolume = 300
 ###########################
 
@@ -85,6 +78,15 @@ goodTradeList = []
 badTradePos = []
 trade_time = []
 bought = False
+
+############################
+# feature Engineering, name the features
+feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
+                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30' ,'std_60' ,'vol_30',
+                                    'vol_60','label']
+features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
+features_df.columns = feature_list
+###########################
 
 for p in pairs:
     #computes the log returns based on the minute_shift
@@ -165,8 +167,8 @@ for i in range(20, len(log_return)-1):
             thisCoin = None
 
     #print(thisCoin)
-print('bad trades %: ', (badtrade / (trades+SMALL)) * 100)
-print('Bad trades lost: ',lost)
+print('bad trades %: ', round((badtrade / (trades+SMALL)) * 100,2))
+print('Bad trades lost: ',round(lost,2))
 print('Bad trade list: ',badTradeList)
 print('Good trade list: ',goodTradeList)
 print('Good trade time:', trade_time)
@@ -221,6 +223,25 @@ def writeFeatures(idx_buy,label,features ,coin):
                             'ratio_roll_60':ratio_roll_60 ,'std_30':std_30 ,'std_60':std_60 ,'vol_30':vol_30,
                                     'vol_60':vol_60,'label':label},ignore_index=True)
 
+
+################################
+# Machine Learning
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
+
+#scaler = MinMaxScaler()    # besser nicht scalen, sollte eh alles zw 0 und 1 sein
+def fit_RF():
+    clf = RandomForestClassifier()
+
+    y = features_df['label'].values
+    X = features_df.drop(['id', 'Coin', 'label'], axis=1).values
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+
+    clf.fit(X_train, y_train)
+    clf.score(X_test, y_test)
 
 
 
