@@ -96,7 +96,7 @@ class bittrexStream(object):
         # independent counter for pairlist
         count = 0
         # loop over index_list, check again if the coin names are correct and then construct the string vectors
-        # to be inserted into the sql database
+        # to be inserted into the sql database, kind of double check
         for idx in index_list:
             try:
                 data_coin = data_all[idx]

@@ -57,7 +57,6 @@ def rsiFunc(prices, index, n = 60):
 
 
 
-
 ###########################
 #Parameters to be tuned!
 minute_shift = 3
