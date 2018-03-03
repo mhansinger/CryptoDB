@@ -22,7 +22,7 @@ pairs_all = list(volume.columns)
 pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 
 # Remove ZCL
-#pairs.remove('BTC_ZCL')
+pairs.remove('BTC_ZCL')
 
 # create a log_return data frame from volume, to be filled later
 log_return = copy.copy(volume)
@@ -61,13 +61,13 @@ def rsiFunc(prices, index, n = 60):
 #Parameters to be tuned!
 minute_shift = 3
 
-exittime = 500
-dropLimit = -0.027 #-0.026
-dropLimit_low = -0.055
+exittime = 600
+dropLimit = -0.029 #-0.026
+dropLimit_low = -0.1
 gain = 1.01
-peak = 0.012
-maxloss = 0.965
-coinVolume = 300
+peak = 0.011
+maxloss = 0.96
+coinVolume = 500
 ###########################
 
 
@@ -79,7 +79,7 @@ feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
                                     'vol_60','label']
 features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
 features_df.columns = feature_list
-###########################
+############################
 
 for p in pairs:
     #computes the log returns based on the minute_shift
@@ -102,7 +102,8 @@ def peak_check(i,thisList):
 ###########################
 # backtesting analysis
 # MAIN function
-def run_analysis():
+def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
+                 maxloss=maxloss,coinVolume=coinVolume):
     # reset some parameters
     buy_price = 0
     trades = 0
