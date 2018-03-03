@@ -12,7 +12,7 @@ SMALL = 1e-15
 conn = sqlite3.connect('bittrex.db')
 price = pd.read_sql("SELECT * FROM BTC_PAIRS_PRICE;",conn)
 ask = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
-bid = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
+bid = pd.read_sql("SELECT * FROM BTC_PAIRS_BID;",conn)
 volume = pd.read_sql("SELECT * FROM BTC_PAIRS_VOLUME;",conn)
 conn.close()
 ############################################
@@ -62,9 +62,9 @@ def rsiFunc(prices, index, n = 60):
 minute_shift = 3
 
 exittime = 500
-dropLimit = -0.024 #-0.026
+dropLimit = -0.027 #-0.026
 dropLimit_low = -0.055
-gain = 1.009
+gain = 1.01
 peak = 0.012
 maxloss = 0.965
 coinVolume = 300
@@ -185,21 +185,6 @@ def run_analysis():
     print('Good trade time:', trade_time)
 
 ###########################
-
-
-
-for i in range(14000):
-    plt.figure(i)
-    plt.plot(price[badTradeList[i]],'k')
-    plt.plot(ask[badTradeList[i]],'b:')
-    plt.plot(bid[badTradeList[i]], 'b--')
-    j = badTradePos[i]
-    plt.plot(j,ask[badTradeList[i]].iloc[j],'g>')
-    plt.plot(j+exittime, bid[badTradeList[i]].iloc[j+exittime], 'r>')
-    plt.title(badTradeList[i])
-
-plt.show(block=False)
-
 
 
 def writeFeatures(idx_buy,label,features ,coin):
@@ -329,6 +314,22 @@ fail_list = []
 log_return_all=[]
 plt.figure(100)
 invest=100
+
+
+
+
+for i in range(14000):
+    plt.figure(i)
+    plt.plot(price[badTradeList[i]],'k')
+    plt.plot(ask[badTradeList[i]],'b:')
+    plt.plot(bid[badTradeList[i]], 'b--')
+    j = badTradePos[i]
+    plt.plot(j,ask[badTradeList[i]].iloc[j],'g>')
+    plt.plot(j+exittime, bid[badTradeList[i]].iloc[j+exittime], 'r>')
+    plt.title(badTradeList[i])
+
+plt.show(block=False)   
+
 
 for p in pairs:
     #ptc_change[p] = price[p].ptc_change()
