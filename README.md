@@ -1,4 +1,4 @@
-# Crypto Data SQL
+# Crypto Currency SQL Database
 
 **Stream crypto currency prices into a SQLite data base**
 
