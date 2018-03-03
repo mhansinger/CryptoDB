@@ -62,12 +62,12 @@ def rsiFunc(prices, index, n = 60):
 minute_shift = 3
 
 exittime = 600
-dropLimit = -0.029 #-0.026
+dropLimit = -0.027 #-0.026
 dropLimit_low = -0.1
 gain = 1.01
-peak = 0.011
-maxloss = 0.96
-coinVolume = 500
+peak = 0.01
+maxloss = 0.95
+coinVolume = 400
 ###########################
 
 
@@ -85,16 +85,16 @@ for p in pairs:
     #computes the log returns based on the minute_shift
     log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
 
-def peak_check(i,thisList):
+def peak_check(i,thisList,dropLimit_low,peak):
     # checks if in the last 10 min a peak of 1% occured
     maxDrop = log_return[thisList].iloc[i].min()
     maxDropCoin = log_return[thisList].iloc[i].idxmin()
     maxVolume = volume[maxDropCoin].iloc[i]
-    if log_return[maxDropCoin].iloc[(i-10):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
+    if log_return[maxDropCoin].iloc[(i-20):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
         #remove the 'bad' coin and run again the check
         newList = copy.copy(thisList)
         newList.remove(maxDropCoin)
-        return peak_check(i,thisList=newList)
+        return peak_check(i,thisList=newList,dropLimit_low=dropLimit_low,peak=peak)
     else:
         return maxDrop, maxDropCoin, maxVolume
 
@@ -129,7 +129,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                     volList.append(coin)
 
             # do the peak check stuff and get the appropriate coins
-            maxDrop, maxDropCoin, maxVolume = peak_check(i, thisList=volList)
+            maxDrop, maxDropCoin, maxVolume = peak_check(i, thisList=volList,dropLimit_low=dropLimit_low,peak=peak)
 
             if maxDrop < dropLimit:  # and maxDrop > dropLimit_low:
 
@@ -140,6 +140,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                 print(thisCoin)
                 print(maxDrop)
                 print('bought at: ', buy_price)
+                print('Volume: ',maxVolume)
                 print(i)
                 buy_id = i
                 trades += 1
