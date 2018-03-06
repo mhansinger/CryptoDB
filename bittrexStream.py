@@ -82,17 +82,23 @@ class bittrexStream(object):
         # check the index list
         index_list = []
         id_count = 0
+        bittrex_coinlist = []
         # if Bittrex adds a new coin pari you would get an error in your database.
         # So, generate index_list of the current BTC-pairs from bittrex which are in your database
+#         for i in range(0,len(data_all)):
+#             if id_count < len(self.pairlist):
+#                 if data_all[i]['MarketName'] == self.pairlist[id_count]:
+#                     index_list.append(i)
+#                     id_count += 1
+#                 else:
+#                     print('Coin pair is not in your database: ',data_all[i]['MarketName'])
+#                     pass
         for i in range(0,len(data_all)):
-            if id_count < len(self.pairlist):
-                if data_all[i]['MarketName'] == self.pairlist[id_count]:
-                    index_list.append(i)
-                    id_count += 1
-                else:
-                    print('Coin pair is not in your database: ',data_all[i]['MarketName'])
-                    pass
-
+            bittrex_coinlist.append(data_all[i]['MarketName'])
+        
+        # update the index list to iterate over in the next step
+        index_list = [bittrex_coinlist.index(i) for i in bittrex_coinlist if i in self.pairlist]
+        
         # independent counter for pairlist
         count = 0
         # loop over index_list, check again if the coin names are correct and then construct the string vectors
