@@ -56,54 +56,51 @@ def rsiFunc(prices, index, n = 60):
     return rsi[index]
 
 
-
 ###########################
 #Parameters to be tuned!
 minute_shift = 3
 
 exittime = 600
-dropLimit = -0.027 #-0.026
+dropLimit = -0.025 #-0.026
 dropLimit_low = -0.1
 gain = 1.01
-peak = 0.01
-maxloss = 0.95
-coinVolume = 400
+peak = 0.015
+maxloss = 0.97
+coinVolume = 300
+blockingTime = 2      # hours
 ###########################
 
-
-############################
-# feature Engineering, name the features
-# IMPORTANT! It has to be consistent with the 'write_features' function (see below)!
-feature_list = ['id','Coin','logsum_60' ,'logsum_180' ,'minlog_30' ,'maxlog_30',
-                                    'ratio_roll_30' ,'ratio_roll_60' ,'std_30','std_60','vol_30',
-                                    'vol_60','label']
-features_df = pd.DataFrame(np.zeros((1,len(feature_list))))
-features_df.columns = feature_list
-############################
 
 for p in pairs:
     #computes the log returns based on the minute_shift
     log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
 
-def peak_check(i,thisList,dropLimit_low,peak):
+def peak_check(i,thisList,dropLimit_low,peak,block_coin):
     # checks if in the last 10 min a peak of 1% occured
     maxDrop = log_return[thisList].iloc[i].min()
     maxDropCoin = log_return[thisList].iloc[i].idxmin()
     maxVolume = volume[maxDropCoin].iloc[i]
+
     if log_return[maxDropCoin].iloc[(i-20):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
         #remove the 'bad' coin and run again the check
         newList = copy.copy(thisList)
         newList.remove(maxDropCoin)
-        return peak_check(i,thisList=newList,dropLimit_low=dropLimit_low,peak=peak)
+        return peak_check(i,thisList=newList,dropLimit_low=dropLimit_low,peak=peak,block_coin=block_coin)
     else:
-        return maxDrop, maxDropCoin, maxVolume
+        # this is to check if the coin recently caused a BAD TRADE
+        if maxDropCoin in block_coin.Coin.values:
+            newList = copy.copy(thisList)
+            newList.remove(maxDropCoin)
+            return peak_check(i, thisList=newList, dropLimit_low=dropLimit_low, peak=peak, block_coin=block_coin)
+        else:
+            return maxDrop, maxDropCoin, maxVolume
 
 
 ###########################
 # backtesting analysis
 # MAIN function
 def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
-                 maxloss=maxloss,coinVolume=coinVolume):
+                 maxloss=maxloss,coinVolume=coinVolume, blockingTime=blockingTime):
     # reset some parameters
     buy_price = 0
     trades = 0
@@ -115,6 +112,18 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
     trade_time = []
     bought = False
     invest = 100
+    ############################
+    # feature Engineering, name the features
+    # IMPORTANT! It has to be consistent with the 'write_features' function (see below)!
+    feature_list = ['id', 'Coin', 'logsum_60', 'logsum_180', 'minlog_30', 'maxlog_30',
+                    'ratio_roll_30', 'ratio_roll_60', 'std_30', 'std_60', 'vol_30',
+                    'vol_60', 'label']
+    features_df = pd.DataFrame(np.zeros((1, len(feature_list))))
+    features_df.columns = feature_list
+    ############################
+
+    block_coin = pd.DataFrame(columns=['UNIX','Pair'])
+    block_coin = block_coin.append({'UNIX': 0, 'Coin': '-'}, ignore_index=True)
 
     # this runs the analysis, simulated trading
     thisCoin = None
@@ -129,7 +138,11 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                     volList.append(coin)
 
             # do the peak check stuff and get the appropriate coins
-            maxDrop, maxDropCoin, maxVolume = peak_check(i, thisList=volList,dropLimit_low=dropLimit_low,peak=peak)
+            delta = i - 60*blockingTime
+            block_coin = block_coin[block_coin.UNIX > delta]
+
+            maxDrop, maxDropCoin, maxVolume = \
+                peak_check(i, thisList=volList,dropLimit_low=dropLimit_low,peak=peak, block_coin=block_coin)
 
             if maxDrop < dropLimit:  # and maxDrop > dropLimit_low:
 
@@ -165,11 +178,14 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                     badTradeList.append(thisCoin)
                     badTradePos.append(i - exittime)
                     # UPDATE the FEATURE MATRIX
-                    # features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
+                    features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
+
+                    # update bad trade list
+                    block_coin = block_coin.append({'UNIX':i,'Coin':thisCoin},ignore_index=True)
 
                 else:
                     # good trade
-                    # features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
+                    features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
                     trade_time.append(i - buy_id)
                     goodTradeList.append(thisCoin)
 
@@ -186,8 +202,12 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
     print('Good trade list: ', goodTradeList)
     print('Good trade time:', trade_time)
 
+    return features_df
+
 ###########################
 
+#features_df=run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
+#                         maxloss=maxloss,coinVolume=coinVolume,blockingTime=blockingTime)
 
 def writeFeatures(idx_buy,label,features ,coin):
     '''
@@ -207,6 +227,7 @@ def writeFeatures(idx_buy,label,features ,coin):
     j:      Index where the coin was bought
     label:  1 for successful trade, 0 for fail trade
     '''
+    #print('WRITE FEATURES')
     j=idx_buy
     #logsum_30 = log_return[coin].iloc[j-30:j].sum()
     logsum_60 = log_return[coin].iloc[j - 60:j].sum()
@@ -234,16 +255,17 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
 #scaler = MinMaxScaler()    # besser nicht scalen, sollte eh alles zw 0 und 1 sein
-def fit_RF():
+def fit_RF(features_df):
+
     clf = RandomForestClassifier()
 
     y = features_df['label'].values
     X = features_df.drop(['id', 'Coin', 'label'], axis=1).values
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
     clf.fit(X_train, y_train)
-    print(clf.score(X_test, y_test))
+    print('classifier score: ',clf.score(X_test, y_test))
 
 
 
