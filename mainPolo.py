@@ -6,6 +6,8 @@ import requests
 # specify the path to the database
 path = 'PoloPercent.db'
 
+# testsetsetest
+
 # set up the main functions you want to stream
 
 interval_sec=600
