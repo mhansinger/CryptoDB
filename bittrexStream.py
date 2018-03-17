@@ -73,6 +73,7 @@ class bittrexStream(object):
             return self.getTicker()
         return data
 
+
     def updateDB(self):
         data_all = self.getTicker()
         price_vec = ''
@@ -84,92 +85,33 @@ class bittrexStream(object):
         # if Bittrex adds a new coin pari you would get an error in your database.
         # So, generate index_list of the current BTC-pairs from bittrex which are in your database
 
-        for i in range(0,len(data_all)):
+        for i in range(0, len(data_all)):
             bittrex_coinlist.append(data_all[i]['MarketName'])
 
-        # update the index list
-        for coin in self.pairlist:
-            try:
-                index_list.append(bittrex_coinlist.index(coin))
-            except ValueError:
-                print('Coin is not listed anymore\n')
+        coins_dict = {key: [0, 0, 0, 0] for (key) in self.pairlist}
+        for idx, coin in enumerate(self.pairlist):
+            for i in range(0, len(data_all)):
+                coins_passed = 0
+                if coin == data_all[i]['MarketName']:
+                    coins_dict[coin][0] = data_all[i]['Last']
+                    coins_dict[coin][1] = data_all[i]['BaseVolume']
+                    coins_dict[coin][2] = data_all[i]['Ask']
+                    coins_dict[coin][3] = data_all[i]['Bid']
 
-        # This is important: check whether self.index_list >= bittrex_coinlist
-        # if True: more BTC coin pairs from bittrex than initially in our database -> reduce to these in our DB
-        # if False: more BTC coin pairs in database than bittrex delivers (they removed some coins, but we still need
-        # to provide numeric values for our database and create a consistent value vector)
 
-        if len(index_list) >= len(self.pairlist):
-            # loop over index_list, check again if the coin names are correct and then construct the string vectors
-            # to be inserted into the sql database, kind of double check
-            for i, idx in enumerate(index_list):
-                data_coin = data_all[idx]
-
-                try:
-                    # check again, if the names match
-                    assert data_coin['MarketName'] == self.pairlist[i]
-
-                    price = data_coin['Last']
-                    volume = data_coin['BaseVolume']
-                    ask = data_coin['Ask']
-                    bid = data_coin['Bid']
-
-                except AssertionError:
-                    print('Somethings wrong with the coin order')
-                    price = 0
-                    volume = 0
-                    ask = 0
-                    bid = 0
-
-                if i < len(self.pairlist) - 1:
-                    price_vec += str(price) + ','
-                    volume_vec += str(volume) + ','
-                    ask_vec += str(ask) + ','
-                    bid_vec += str(bid) + ','
-                else:
-                    # do not add ',' to the last entry
-                    price_vec += str(price)
-                    volume_vec += str(volume)
-                    ask_vec += str(ask)
-                    bid_vec += str(bid)
-                    print(idx)
-
-        else:
-            # this is the case when our list is longer than the BTC Coin list from bittrex
-            print('\nBittrex reduced BTC pairs')
-            # use the first index as counter; this should be 0 in case of BTC, however, in case of ETH as base currency
-            # this index starts with ~200
-            count = index_list[0]
-            for i, coin in enumerate(self.pairlist):
-                data_coin = data_all[count]
-                try:
-                    # check again, if the names match
-                    assert data_coin['MarketName'] == coin
-                    price = data_coin['Last']
-                    volume = data_coin['BaseVolume']
-                    ask = data_coin['Ask']
-                    bid = data_coin['Bid']
-                    count += 1
-                except AssertionError:
-                    print('%s has been removed from Bittrex\n' % coin)
-                    price = 0
-                    volume = 0
-                    ask = 0
-                    bid = 0
-
-                if i < len(self.pairlist) - 1:
-                    price_vec += str(price) + ','
-                    volume_vec += str(volume) + ','
-                    ask_vec += str(ask) + ','
-                    bid_vec += str(bid) + ','
-                else:
-                    # do not add ',' to the last entry
-                    price_vec += str(price)
-                    volume_vec += str(volume)
-                    ask_vec += str(ask)
-                    bid_vec += str(bid)
-                    print(i)
-
+        # compose the SQL data vector
+        for id, coin in enumerate(self.pairlist):
+            if id < len(self.pairlist) - 1:
+                price_vec += str(coins_dict[coin][0]) + ','
+                volume_vec += str(coins_dict[coin][1]) + ','
+                ask_vec += str(coins_dict[coin][2]) + ','
+                bid_vec += str(coins_dict[coin][3]) + ','
+            else:
+                # do not add ',' to the last entry
+                price_vec += str(coins_dict[coin][0])
+                volume_vec += str(coins_dict[coin][1])
+                ask_vec += str(coins_dict[coin][2])
+                bid_vec += str(coins_dict[coin][3])
 
         date = time.strftime("%m.%d.%y_%H:%M:%S", time.localtime())
         unixtime = int(time.time())
@@ -190,4 +132,3 @@ class bittrexStream(object):
         conn.commit()
         conn.close()
         print('Update the data base at ' + str(date))
-
