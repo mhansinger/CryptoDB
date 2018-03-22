@@ -24,8 +24,7 @@ pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 # Remove ZCL
 pairs.remove('BTC_ZCL')
 
-# create a log_return data frame from volume, to be filled later
-log_return = copy.copy(volume)
+
 
 def rsiFunc(prices, index, n = 60):
     # computes the RSI over 60 min
@@ -58,49 +57,51 @@ def rsiFunc(prices, index, n = 60):
 
 ###########################
 #Parameters to be tuned!
-minute_shift = 3
+minute_shift = 5
 
-exittime = 600
-dropLimit = -0.025 #-0.026
+exittime = 800
+dropLimit = -0.02 #-0.026
 dropLimit_low = -0.1
-gain = 1.01
-peak = 0.015
-maxloss = 0.97
-coinVolume = 300
+gain = 1.013
+peak = 0.01
+maxloss = 0.965
+coinVolume = 500
 blockingTime = 2      # hours
 ###########################
 
 
-for p in pairs:
-    #computes the log returns based on the minute_shift
-    log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
 
-def peak_check(i,thisList,dropLimit_low,peak,block_coin):
+def peak_check(i,thisList,dropLimit_low,peak,block_coin,log_return):
     # checks if in the last 10 min a peak of 1% occured
-    maxDrop = log_return[thisList].iloc[i].min()
-    maxDropCoin = log_return[thisList].iloc[i].idxmin()
-    maxVolume = volume[maxDropCoin].iloc[i]
+    try:
+        maxDrop = log_return[thisList].iloc[i].min()
+        maxDropCoin = log_return[thisList].iloc[i].idxmin()
+        maxVolume = volume[maxDropCoin].iloc[i]
 
-    if log_return[maxDropCoin].iloc[(i-20):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
-        #remove the 'bad' coin and run again the check
-        newList = copy.copy(thisList)
-        newList.remove(maxDropCoin)
-        return peak_check(i,thisList=newList,dropLimit_low=dropLimit_low,peak=peak,block_coin=block_coin)
-    else:
-        # this is to check if the coin recently caused a BAD TRADE
-        if maxDropCoin in block_coin.Coin.values:
+        if log_return[maxDropCoin].iloc[(i - 20):i].max() > peak and maxDrop < dropLimit and maxDrop > dropLimit_low:
+            # remove the 'bad' coin and run again the check
             newList = copy.copy(thisList)
             newList.remove(maxDropCoin)
-            return peak_check(i, thisList=newList, dropLimit_low=dropLimit_low, peak=peak, block_coin=block_coin)
+            return peak_check(i, thisList=newList, dropLimit_low=dropLimit_low, peak=peak, block_coin=block_coin,log_return=log_return)
         else:
-            return maxDrop, maxDropCoin, maxVolume
+            # this is to check if the coin recently caused a BAD TRADE
+            if maxDropCoin in block_coin.Coin.values or maxDrop < dropLimit_low:
+                newList = copy.copy(thisList)
+                newList.remove(maxDropCoin)
+                return peak_check(i, thisList=newList, dropLimit_low=dropLimit_low, peak=peak, block_coin=block_coin,log_return=log_return)
+            else:
+                return maxDrop, maxDropCoin, maxVolume
+    except ValueError:
+        # in case of an error return sth. which will not cause a buy order:
+        print('ValueError in peak check ...')
+        return 0.0, 'BTC-ETH', 100
 
 
 ###########################
 # backtesting analysis
 # MAIN function
 def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
-                 maxloss=maxloss,coinVolume=coinVolume, blockingTime=blockingTime):
+                 maxloss=maxloss,coinVolume=coinVolume, blockingTime=blockingTime,minute_shift=minute_shift):
     # reset some parameters
     buy_price = 0
     trades = 0
@@ -120,6 +121,17 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                     'vol_60', 'label']
     features_df = pd.DataFrame(np.zeros((1, len(feature_list))))
     features_df.columns = feature_list
+
+    # create a log_return data frame from volume, to be filled later
+    ############################
+    log_return = price.copy()
+    for p in pairs:
+        # computes the log returns based on the minute_shift
+        log_return[p] = np.log(ask[p]) - np.log(ask[p].shift(minute_shift))
+
+    log_return = log_return.fillna(0)
+    log_return = log_return.replace('-inf', 0.0)
+
     ############################
 
     block_coin = pd.DataFrame(columns=['UNIX','Pair'])
@@ -142,7 +154,9 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
             block_coin = block_coin[block_coin.UNIX > delta]
 
             maxDrop, maxDropCoin, maxVolume = \
-                peak_check(i, thisList=volList,dropLimit_low=dropLimit_low,peak=peak, block_coin=block_coin)
+                peak_check(i, thisList=volList,dropLimit_low=dropLimit_low,peak=peak, block_coin=block_coin, log_return=log_return)
+
+            #print(maxDrop, maxDropCoin, maxVolume)
 
             if maxDrop < dropLimit:  # and maxDrop > dropLimit_low:
 
@@ -163,8 +177,8 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                 print(' ')
 
         elif bought:
-            if bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or \
-                    bid[thisCoin].iloc[i] < buy_price * maxloss:
+            if (bid[thisCoin].iloc[i] >= gain * buy_price or i > buy_id + exittime or \
+                    bid[thisCoin].iloc[i] < buy_price * maxloss) and bid[thisCoin].iloc[i] > 0.0:
                 invest = coins * bid[thisCoin].iloc[i]
                 invest = invest * (1. - 0.005)
                 print('sold at: ', bid[thisCoin].iloc[i])
@@ -178,14 +192,14 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                     badTradeList.append(thisCoin)
                     badTradePos.append(i - exittime)
                     # UPDATE the FEATURE MATRIX
-                    features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin)
+                    features_df = writeFeatures(idx_buy = buy_id,label=0, features=features_df,coin=thisCoin,log_return=log_return)
 
                     # update bad trade list
                     block_coin = block_coin.append({'UNIX':i,'Coin':thisCoin},ignore_index=True)
 
                 else:
                     # good trade
-                    features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin)
+                    features_df = writeFeatures(idx_buy = buy_id,label=1, features=features_df,coin=thisCoin,log_return=log_return)
                     trade_time.append(i - buy_id)
                     goodTradeList.append(thisCoin)
 
@@ -209,7 +223,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
 #features_df=run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
 #                         maxloss=maxloss,coinVolume=coinVolume,blockingTime=blockingTime)
 
-def writeFeatures(idx_buy,label,features ,coin):
+def writeFeatures(idx_buy,label,features ,coin,log_return):
     '''
     This function writes all selected features into a matrix
     logsum_30: cumulative log return over 30 min
@@ -266,6 +280,8 @@ def fit_RF(features_df):
 
     clf.fit(X_train, y_train)
     print('classifier score: ',clf.score(X_test, y_test))
+    print(y_test)
+    print(clf.predict(X_test))
 
 
 
@@ -342,7 +358,7 @@ invest=100
 
 
 
-for i in range(14000):
+for i in range(len(price)):
     plt.figure(i)
     plt.plot(price[badTradeList[i]],'k')
     plt.plot(ask[badTradeList[i]],'b:')
