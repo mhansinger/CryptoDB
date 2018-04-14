@@ -9,12 +9,18 @@ SMALL = 1e-15
 ############################################
 # get the data from the sqlite database
 
-conn = sqlite3.connect('bittrex.db')
-price = pd.read_sql("SELECT * FROM BTC_PAIRS_PRICE;",conn)
-ask = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
-bid = pd.read_sql("SELECT * FROM BTC_PAIRS_BID;",conn)
-volume = pd.read_sql("SELECT * FROM BTC_PAIRS_VOLUME;",conn)
-conn.close()
+#conn = sqlite3.connect('bittrex.db')
+#price = pd.read_sql("SELECT * FROM BTC_PAIRS_PRICE;",conn)
+#ask = pd.read_sql("SELECT * FROM BTC_PAIRS_ASK;",conn)
+#bid = pd.read_sql("SELECT * FROM BTC_PAIRS_BID;",conn)
+#volume = pd.read_sql("SELECT * FROM BTC_PAIRS_VOLUME;",conn)
+#conn.close()
+############################################
+price = pd.read_csv('BTC_PAIRS_PRICE.csv')
+ask = pd.read_csv('BTC_PAIRS_ASK.csv')
+bid = pd.read_csv('BTC_PAIRS_BID.csv')
+volume = pd.read_csv('BTC_PAIRS_VOLUME.csv')
+
 ############################################
 
 # get the columns, only consider BTC pairs
@@ -24,6 +30,13 @@ pairs = [p for p in pairs_all if p[0:3] == 'BTC']
 # Remove ZCL
 pairs.remove('BTC_ZCL')
 
+############################################
+# replace 0.0 values in the data with previous one (n-1):
+for p in pairs:
+    price[p] = price[p].replace(to_replace=0,method='ffill')
+    volume[p] = volume[p].replace(to_replace=0, method='ffill')
+    bid[p] = bid[p].replace(to_replace=0, method='ffill')
+    ask[p] = ask[p].replace(to_replace=0, method='ffill')
 
 
 def rsiFunc(prices, index, n = 60):
@@ -60,10 +73,10 @@ def rsiFunc(prices, index, n = 60):
 minute_shift = 5
 
 exittime = 800
-dropLimit = -0.02 #-0.026
+dropLimit = -0.025  #-0.026
 dropLimit_low = -0.1
-gain = 1.013
-peak = 0.01
+gain = 1.014
+peak = 0.011
 maxloss = 0.965
 coinVolume = 500
 blockingTime = 2      # hours
