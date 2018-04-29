@@ -5,6 +5,8 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 
+from numba import jit
+
 SMALL = 1e-15
 ############################################
 # get the data from the sqlite database
@@ -70,18 +72,17 @@ def rsiFunc(prices, index, n = 60):
 
 ###########################
 #Parameters to be tuned!
-minute_shift = 5
+minute_shift = 8
 
-exittime = 800
-dropLimit = -0.025  #-0.026
+exittime = 500
+dropLimit = -0.029  #-0.026
 dropLimit_low = -0.1
-gain = 1.014
-peak = 0.011
-maxloss = 0.965
-coinVolume = 500
-blockingTime = 2      # hours
+gain = 1.012
+peak = 0.015
+maxloss = 0.96
+coinVolume = 700
+blockingTime = 20      # hours
 ###########################
-
 
 
 def peak_check(i,thisList,dropLimit_low,peak,block_coin,log_return):
@@ -113,6 +114,7 @@ def peak_check(i,thisList,dropLimit_low,peak,block_coin,log_return):
 ###########################
 # backtesting analysis
 # MAIN function
+
 def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
                  maxloss=maxloss,coinVolume=coinVolume, blockingTime=blockingTime,minute_shift=minute_shift):
     # reset some parameters
@@ -137,6 +139,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
 
     # create a log_return data frame from volume, to be filled later
     ############################
+    global log_return
     log_return = price.copy()
     for p in pairs:
         # computes the log returns based on the minute_shift
@@ -180,7 +183,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
                 print(thisCoin)
                 print(maxDrop)
                 print('bought at: ', buy_price)
-                print('Volume: ',maxVolume)
+                print('Volume: ', maxVolume)
                 print(i)
                 buy_id = i
                 trades += 1
@@ -235,6 +238,7 @@ def run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit
 
 #features_df=run_analysis(exittime=exittime, dropLimit=dropLimit, dropLimit_low=dropLimit_low,gain=gain,peak=peak,
 #                         maxloss=maxloss,coinVolume=coinVolume,blockingTime=blockingTime)
+
 
 def writeFeatures(idx_buy,label,features ,coin,log_return):
     '''
@@ -297,6 +301,29 @@ def fit_RF(features_df):
     print(clf.predict(X_test))
 
 
+def plot_logreturn(log_return=log_return,limit = dropLimit):
+    below = 0
+    data_zero=np.zeros(shape=(1,len(pairs)))
+    global log_data
+    log_data = pd.DataFrame(data_zero,columns=log_return[pairs].columns.values)
+    for p in pairs:
+        plt.scatter(log_return.index.values,log_return[p], s=0.3, c='k')
+        low = log_return[p][log_return[p]<dropLimit]
+        below += len(low)
+        log_data[p] = len(low)
+        plt.scatter(low.index.values,low, s=0.3, c='r')
+    plt.figure()
+    log_data.plot(kind='bar')
+    plt.show(block=False)
+    print('Below: ',below)
+    print('Percentage: ', below/(len(pairs)*len(log_return)))
+
+
+def plot_hist(log_return=log_return):
+    log_return_np = log_return[pairs].values
+    log_return_np = log_return_np.reshape(log_return_np.shape[0]*log_return_np.shape[1])
+    plt.hist(log_return_np,bins=100)
+    plt.show(block=False)
 
 
 
