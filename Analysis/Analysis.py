@@ -72,14 +72,14 @@ def rsiFunc(prices, index, n = 60):
 
 ###########################
 #Parameters to be tuned!
-minute_shift = 8
+minute_shift = 4
 
-exittime = 500
-dropLimit = -0.029  #-0.026
+exittime = 800
+dropLimit = -0.03025  #-0.026
 dropLimit_low = -0.1
-gain = 1.012
+gain = 1.014
 peak = 0.015
-maxloss = 0.96
+maxloss = 0.95
 coinVolume = 700
 blockingTime = 20      # hours
 ###########################
@@ -301,6 +301,8 @@ def fit_RF(features_df):
     print(clf.predict(X_test))
 
 
+
+''' 
 def plot_logreturn(log_return=log_return,limit = dropLimit):
     below = 0
     data_zero=np.zeros(shape=(1,len(pairs)))
@@ -327,7 +329,6 @@ def plot_hist(log_return=log_return):
 
 
 
-''' 
 #Works
 minute_shift=5
 bought = False
